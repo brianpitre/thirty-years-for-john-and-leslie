@@ -1,0 +1,908 @@
+/* ============================================================
+   THIRTY YEARS · FOR JOHN & LESLIE — the book
+
+   The Zoe book's mechanics (one 3D book; scrolling turns its pages) in the
+   30 Years look. Checked against Brian's Style Guide folder, 13 Nov 2026
+   (30th Anniversary/Style Guide: the guide's Season / Color / Typography
+   sections, the anniversary key art, the Nov 15 card, the marks):
+
+     · the page is PAPER, with the guide's faint dot grid; cards are CREAM
+       with a 2px ink rule, ROUNDED corners and a hard ink shadow
+     · labels and buttons are pills; numbers sit in sage circles
+     · Museum leads (Ultrabold for headings), Gotham works, Wellsville is
+       the one flourish per layout
+     · colour pages carry pinstripes like the guide's swatches; the cover
+       follows the key art (a sage ground, grain, names in rows, the badge)
+     · type sits straight on colour, as on the card: no box around it
+
+   One rule kept from the film's graphics: EVERY SURFACE IS FLAT. No
+   gradients, no soft shadows, no glow. Depth comes from the page turn, from
+   hard ink shadows, and from the book's own thickness: shut, the stack of
+   pages and the back board show under the cover, drawn down and to the right
+   like the guide's card shadows (Brian, 13 Nov: more depth, more like a
+   real book).
+
+   Pages are built by js/book.js from js/content.js.
+   ============================================================ */
+
+/* ---------- Fonts (licensed brand files; see README before publishing) ---------- */
+@font-face{font-family:'PP Museum';src:url('../fonts/museum-300.woff2') format('woff2');font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:'PP Museum';src:url('../fonts/museum-400.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'PP Museum';src:url('../fonts/museum-400i.woff2') format('woff2');font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:'PP Museum';src:url('../fonts/museum-800.woff2') format('woff2');font-weight:800;font-style:normal;font-display:swap}
+@font-face{font-family:'Gotham';src:url('../fonts/gotham-400.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Gotham';src:url('../fonts/gotham-500.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Gotham';src:url('../fonts/gotham-700.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:'Wellsville';src:url('../fonts/wellsville.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+
+/* ---------- Tokens: the 30 Years guide ---------- */
+:root{
+  --ink:#26231C;
+  --paper:#F0EAE0;
+  --cream:#D7D0C5;
+  --orange:#BB6024;
+  --mustard:#CB9216;
+  --olive:#666737;
+  --sage:#9FB0A3;
+  --khaki:#86754F;
+  --coffee:#301A0F;
+  --orange-ink:#9A4A17;   /* the orange darkened until it passes contrast as small type on cream */
+
+  --ground:var(--paper);  /* the guide's page: what the book sits on */
+  --page:var(--cream);    /* the guide's card: a page of the book */
+  --chip:var(--paper);    /* a label that sits on a card */
+
+  --display:'PP Museum','Fraunces',Georgia,'Times New Roman',serif;
+  --text:'Gotham','Montserrat','Helvetica Neue',Arial,sans-serif;
+  --script:'Wellsville','Grand Hotel','Snell Roundhand',cursive;
+
+  --nav-h:64px;
+  --chrome:176px;         /* height kept clear of the book: the nav above it, the pager below (js reads this too) */
+  /* More room between the nav and the top of the book (Brian, 15 Nov: on his phone "the spacing at the
+     top ... looks a little too tight", the cover ran into the nav's second line; on a computer "lower
+     the whole book a little ... so that the space above it is increased a bit"). The book is sized as
+     if the nav were this much taller, and set down by it: its top comes down by --head, its foot stays
+     where it was. Shut and open alike: the shut cover is still exactly where page 1 lies, so nothing
+     slides as it opens. The cost: where the window's height decides the book's size it is about 2%
+     smaller on a computer, 3% on a phone. (js reads this too.) */
+  --head:14px;
+  --pager-b:14px;         /* the pager's distance from the foot of the window */
+
+  /* A phone app can run the page under its system bars (status bar, home indicator). These are those
+     bars' heights: 0 in every browser window. The paper runs under them; the nav, the book and the
+     pager keep clear. */
+  --sat:env(safe-area-inset-top, 0px);
+  --sab:env(safe-area-inset-bottom, 0px);
+
+  /* Book geometry. Desktop: an open spread, 3:2 (each page 3:4).
+     Small screens: one page at a time, 2:3.
+     The book is sized to fit SHUT. Shut, it reaches lower than it does open, by the thickness of its
+     pages (--thick: 1.9em of a page 42.67em high, 1.6em of one 36em high; both 4.45%, which is --fit).
+     So the open pages lie exactly where the shut cover was, and nothing has to move down or change
+     size as the book opens (Brian, 14 Nov). js reads --fit too.
+     On a phone the page is as wide as the SHUT book allows: spine, cover, pages and shadow come to
+     1.188 pages, which is 97.4vw of a page 82vw wide (123vw high). At 126vw the shut book was a hair
+     wider than the screen and had to be drawn smaller, then grow as it opened. */
+  --fit:1.0445;
+  --spread-w:min(92vw, calc((100vh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) * 1.5 / var(--fit)));
+  --page-h:min(calc((100vh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) / var(--fit)), 123vw);
+  --page-w:calc(var(--page-h) * 2 / 3);
+}
+@supports (height:100svh){
+  :root{
+    --spread-w:min(92vw, calc((100svh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) * 1.5 / var(--fit)));
+    --page-h:min(calc((100svh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) / var(--fit)), 123vw);
+  }
+}
+/* a short window: give the height to the book, not to the furniture around it */
+@media (max-height:800px){
+  :root{--chrome:136px;--nav-h:52px}
+  .nav__mark{height:30px}
+}
+@media (max-height:800px) and (pointer:fine){
+  :root{--pager-b:8px}
+  .pager{gap:12px}
+  .pager__btn{width:36px;height:36px}
+  .pager__label{gap:3px}
+  .pager__where{font-size:13.5px}
+}
+@media (max-height:540px){
+  :root{--chrome:112px;--nav-h:44px;--pager-b:6px}
+  .pager{gap:12px}
+  .pager__btn{width:36px;height:36px}
+  .pager__label{gap:3px}
+  .pager__where{font-size:13px}
+}
+
+/* ---------- Reset-ish ---------- */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html.lenis{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto}
+body{
+  font-family:var(--text);
+  font-size:16px;
+  background-color:var(--ground);
+  color:var(--ink);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+[hidden]{display:none!important}
+img{max-width:100%;display:block}
+button{font:inherit;color:inherit}
+::selection{background:var(--mustard);color:var(--ink)}
+:focus-visible{outline:2px solid var(--orange);outline-offset:3px}
+.visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* the guide's dot grid, behind its section openers */
+.dots{
+  background-image:radial-gradient(circle, var(--cream) 1.25px, transparent 1.6px);
+  background-size:14px 14px;
+  background-position:7px 7px;
+}
+
+/* ---------- Loader ---------- */
+.loader{
+  position:fixed;inset:0;z-index:200;background-color:var(--ground);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  transition:opacity .6s,visibility .6s;
+}
+.loader.is-done{opacity:0;visibility:hidden}
+.loader__mark{width:168px;height:auto}
+.loader__hint{font:700 11px/1 var(--text);letter-spacing:.2em;text-transform:uppercase;color:var(--orange-ink)}
+
+/* ---------- Nav ---------- */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;height:calc(var(--nav-h) + var(--sat));
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:var(--sat);
+  padding-left:max(clamp(16px,3vw,40px), env(safe-area-inset-left, 0px));
+  padding-right:max(clamp(16px,3vw,40px), env(safe-area-inset-right, 0px));
+}
+.nav__brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--ink)}
+.nav__mark{height:36px;width:auto}
+.nav__word{font:800 1.14rem/1 var(--display);white-space:nowrap}
+.nav__word em{font-style:italic;font-weight:400;color:var(--olive);margin-left:.3em}
+.nav__links{display:flex;align-items:center;gap:clamp(14px,2.2vw,28px)}
+.nav__links a{
+  font:700 11px/1 var(--text);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink);text-decoration:none;padding:7px 0 5px;border-bottom:2px solid transparent;
+  white-space:nowrap;
+}
+.nav__links a:hover,.nav__links a:focus-visible{border-bottom-color:var(--orange)}
+/* the guide's button: a flat colour pill, 2px ink rule, hard shadow; it presses into the shadow */
+.nav__links .nav__cta{
+  padding:10px 17px 9px;border:2px solid var(--ink);border-radius:999px;
+  background-color:var(--orange);color:var(--paper);
+  box-shadow:3px 3px 0 var(--ink);
+  transition:transform .12s,box-shadow .12s;
+}
+.nav__links .nav__cta:hover,.nav__links .nav__cta:focus-visible{
+  border-color:var(--ink);transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink);
+}
+.burger{display:none;background:none;border:0;width:44px;height:44px;cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:7px}
+.burger span{display:block;width:24px;height:2px;background:var(--ink);transition:transform .3s}
+.burger.is-open span:first-child{transform:translateY(4.5px) rotate(45deg)}
+.burger.is-open span:last-child{transform:translateY(-4.5px) rotate(-45deg)}
+.mmenu{
+  position:fixed;inset:0;z-index:95;background:var(--olive);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+  opacity:0;visibility:hidden;transition:opacity .3s,visibility .3s;
+}
+.mmenu.is-open{opacity:1;visibility:visible}
+.mmenu a{font:800 1.75rem/1.1 var(--display);color:var(--cream);text-decoration:none}
+.mmenu .mmenu__cta{
+  margin-top:8px;font:700 12px/1 var(--text);letter-spacing:.18em;text-transform:uppercase;color:var(--paper);
+  padding:14px 22px 13px;border:2px solid var(--ink);border-radius:999px;background:var(--orange);box-shadow:3px 3px 0 var(--ink);
+}
+@media (max-width:900px){
+  .nav__links{display:none}
+  .burger{display:flex}
+  .nav__mark{height:30px}
+  .nav__word{font-size:1rem}
+  :root{--nav-h:56px}
+}
+/* a phone: the name goes on two lines (it is longer with "Pastors" in it) */
+@media (max-width:560px){
+  .nav__word{display:flex;flex-direction:column;gap:3px;font-size:.98rem}
+  .nav__word em{margin-left:0;font-size:.86em}
+}
+
+/* ============================================================
+   THE SCENE — the guide's paper, one book, a hard ink shadow
+   ============================================================ */
+/* (where a phone app pads the page clear of its system bars, the paper is pulled back out under them;
+   the scene then keeps the book, the nav and the pager clear by its own padding) */
+.book-scroll{position:relative;margin-block:calc(-1 * var(--sat)) calc(-1 * var(--sab))}
+.stage{height:100vh;height:100svh;position:relative}
+/* A PHONE OR A TABLET (js adds .is-swipe to the page): the pages turn by swiping left or right and
+   nothing scrolls (Brian, 14 Nov). The stage is the screen itself; the browser pans nothing, so a
+   finger's move is the book's to follow. Two fingers still zoom, and a zoomed screen pans as usual. */
+html.is-swipe,html.is-swipe body{overflow:hidden;overscroll-behavior:none}
+html.is-swipe .stage{position:fixed;inset:0;height:auto}
+html.is-swipe .scene,html.is-swipe .nav,html.is-swipe .mmenu{touch-action:pinch-zoom}
+html.is-swipe.is-zoomed .scene,html.is-swipe.is-zoomed .nav,html.is-swipe.is-zoomed .mmenu{touch-action:auto}
+html.is-swipe .book-wrap img,html.is-swipe .book-wrap a{-webkit-user-drag:none;-webkit-touch-callout:none}
+html.is-turning,html.is-turning *{-webkit-user-select:none;user-select:none}
+/* ?still=N (proofs): nothing fades */
+html.is-still *,html.is-still *::before,html.is-still *::after{transition:none!important}
+.scene{
+  position:absolute;inset:0;overflow:hidden;touch-action:pan-y;
+  display:flex;align-items:center;justify-content:center;
+  background-color:var(--ground);
+  padding-block:var(--sat) var(--sab);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* everything printed shares these (the book and the laid-flat fallback) */
+.bk{
+  --u:1px;            /* one pinstripe line; js snaps it to whole device pixels as the book scales */
+  --rule:2px;         /* the guide's 2px ink rule */
+  --sh:.36em;         /* the guide's hard shadow offset */
+  --r-book:1.15em;    /* the book's outer corners */
+  --r-page:.95em;     /* a page's outer corners */
+  --r-card:.85em;     /* a card on a page (the guide's 14px on its own cards) */
+  --r-chip:.55em;     /* a label on a card */
+  --board:var(--sage);
+  --edge-line:#9B968E;  /* a line between two pages, seen edge-on (the ink at 42% on paper) */
+  --sq:1em;             /* how far the cover's boards reach past the pages: the frame round the open book */
+  --spine-w:1.3em;      /* the spine, seen at the shut book's left */
+  --thick:1.9em;        /* the whole block of pages, seen under the shut cover (js reads it; --fit above follows from it) */
+  --tuck:3.6em;         /* how far the back board, its shadow and the pages run on under the spine: past the spine's
+                           far side even when the board sits a whole --thick to the right (so more than --spine-w + --thick) */
+  --pin:repeating-linear-gradient(90deg,transparent 0 calc(var(--u)*4),rgba(38,35,28,.17) calc(var(--u)*4) calc(var(--u)*5));
+  --pin-soft:repeating-linear-gradient(90deg,transparent 0 calc(var(--u)*4),rgba(38,35,28,.055) calc(var(--u)*4) calc(var(--u)*5));
+  --pin-mid:repeating-linear-gradient(90deg,transparent 0 calc(var(--u)*4),rgba(38,35,28,.11) calc(var(--u)*4) calc(var(--u)*5));
+  /* (on the dark brown an ink line does not show: the same stripe drawn in paper, at the strength the ink one has on a colour) */
+  --pin-light:repeating-linear-gradient(90deg,transparent 0 calc(var(--u)*4),rgba(240,234,224,.07) calc(var(--u)*4) calc(var(--u)*5));
+  /* which corners are round: the spine side of a spread stays square */
+  --shape-recto:0 var(--r-page) var(--r-page) 0;
+  --shape-verso:var(--r-page) 0 0 var(--r-page);
+  --shape-cover:0 var(--r-book) var(--r-book) 0;
+  --shape-inside:var(--r-book) 0 0 var(--r-book);
+}
+/* the boards take the cover's colour */
+.bk[data-cover="names"]{--board:var(--sage)}
+.bk[data-cover="title"]{--board:var(--olive)}
+.bk[data-cover="box"]{--board:var(--orange)}
+
+.book-wrap{
+  position:relative;z-index:4;
+  width:var(--spread-w);
+  aspect-ratio:3/2;
+  font-size:calc(var(--spread-w)/64);      /* a page is 32em x 42.67em */
+  --axis:50%;                              /* the spine: the middle of an open spread */
+  --half:50%;                              /* one page's share of the width */
+  perspective:calc(var(--spread-w)*2.6);
+  perspective-origin:50% 50%;
+  /* The pager sits under the book. The room the shut book's thickness takes is kept BELOW the pages
+     (the pages themselves sit where they would with no thickness at all), and the book rides 6px
+     high: the nav above it is mostly air, the pager's buttons below it are not. */
+  margin-bottom:calc(22px + var(--thick));
+  margin-top:var(--head);                  /* (the room under the nav: see --head) */
+}
+/* The book's own box is a flat sheet at depth 0, and every right-hand page lies BEHIND it (js: leaf i
+   rests at -i x EPS). A click or a tap goes to whatever is nearest, so that sheet took every one
+   meant for a right-hand page: the Watch links and the lists on the part openers could not be
+   pressed at all (found 15 Nov, when the film's links went in and did nothing). So the sheet, and
+   the boards, spine and stacks in it, take no part: only the leaves and the last page do. */
+.book{position:absolute;inset:0;transform-style:preserve-3d;pointer-events:none}
+
+/* The book's hard shadow: an ink copy of the boards, offset down-right. The left half
+   grows out from the spine as the cover lands (js drives the inner <i>'s scaleX). */
+.bshadow{position:absolute;top:calc(-1 * var(--sq));bottom:calc(-1 * var(--sq));transform:translate3d(.62em,.62em,-18px)}
+.bshadow i{position:absolute;inset:0;background:var(--ink)}
+/* (the right-hand shadow runs on under the spine, so that the shut book, spine and all, throws one
+   shadow; js clips whatever of it would show to the spine's left) */
+.bshadow--right{left:calc(var(--axis) - var(--spine-w) - var(--tuck));right:calc(-1 * var(--sq))}
+.bshadow--right i{border-radius:.6em var(--r-book) var(--r-book) .6em}
+.bshadow--left{left:calc(var(--axis) - var(--half) - var(--sq));right:calc(100% - var(--axis))}
+.bshadow--left i{transform-origin:100% 50%;transform:scaleX(0);border-radius:var(--shape-inside)}
+
+/* The back board: the cover's colour, a little larger than the pages. Real negative Z:
+   inside preserve-3d, coplanar paint order is engine-dependent. */
+.board{
+  position:absolute;top:calc(-1 * var(--sq));bottom:calc(-1 * var(--sq));
+  border:var(--rule) solid var(--ink);
+  background-color:var(--board);background-image:var(--pin);
+  transform:translateZ(-13px);
+}
+/* (it runs on under the spine, so that it still reaches the spine while it sits down and to the right
+   of the shut cover; js clips what would show to the spine's left) */
+.board--right{left:calc(var(--axis) - var(--tuck));right:calc(-1 * var(--sq));border-radius:0 var(--r-book) var(--r-book) 0}
+
+/* The spine: the cloth that joins the two boards, left of the cover's hinge. It is there to see while
+   the book is shut and as the cover lifts; the opened cover then lies over it. It is exactly as tall
+   as the cover (Brian, 14 Nov: it ran on down past the cover's foot, as if the spine were the longer
+   of the two). A rounded back, in flat bands: its far edge falls away, its crown catches the light. */
+.bspine{
+  position:absolute;top:calc(-1 * var(--sq));
+  left:calc(var(--axis) - var(--spine-w));width:var(--spine-w);
+  height:calc(100% + 2 * var(--sq));
+  background-color:var(--board);
+  background-image:linear-gradient(90deg, rgba(38,35,28,.32) 0 15%, rgba(38,35,28,.15) 15% 40%, rgba(240,234,224,.1) 40% 56%, rgba(38,35,28,.15) 56% 100%);
+  border:var(--rule) solid var(--ink);border-right-width:calc(var(--rule) / 2);
+  border-radius:.6em 0 0 0;
+  transform:translateZ(-8px);
+  overflow:hidden;
+}
+
+/* The foot of the spine: what shows under the spine while the book is shut. A book is looked at from
+   its foot here (the pages' lower edge shows, not their upper one), so under the spine one sees into
+   its end: the cloth turning under to join the back board, and inside that turn the rounded back of
+   the block of pages.
+   Nothing new is painted for it. The back board and the stack of pages both run on under the spine,
+   and js lets each show through a quarter-round window there (clip-path; see setDepth), so the cloth
+   in the turn IS the back board and the lines on the rounded back ARE the pages' lines. All that is
+   added is an ink rule round each window: .bfoot__cloth here, and .bback beside the pages (below).
+   --drop: how far the back board sits below the cover. */
+.bfoot{
+  position:absolute;left:calc(var(--axis) - var(--spine-w));top:calc(100% + var(--sq));
+  width:var(--spine-w);height:0;
+  transform:translateZ(-9px);pointer-events:none;
+}
+.bfoot__cloth,.bback{
+  position:absolute;box-sizing:border-box;visibility:hidden;pointer-events:none;
+  border:0 solid var(--ink);border-left-width:var(--rule);border-bottom-width:var(--rule);
+  border-bottom-left-radius:100%;
+}
+.bfoot__cloth{right:0;top:0;width:100%;height:var(--drop,0px)}
+
+/* The two stacks of pages. Each shows its edge as ruled paper, stepped down and outward: js gives it
+   one hard box-shadow layer per line and sets --t, the stack's thickness (the whole block while the
+   book is shut; a thin edge inside the cover's frame once it lies open, thinner on the right and
+   thicker on the left as pages cross over). Both are cut off at the spine.
+   The right-hand one starts well under the spine, so that its edge is whole from the spine outward (a
+   stack that began AT the spine would step away from it, and the book would look unbound), and so
+   that there are pages to show in the foot of the spine (.bfoot; js then sets this clip-path). */
+.bblock{position:absolute;top:0;height:100%}
+/* (the right-hand stack sits in a holder with the ink rule round its rounded back, .bback: drawn in
+   the one plane, that rule and the rule along the pages' foot meet to the pixel) */
+.bstack{
+  position:absolute;top:0;height:100%;
+  left:calc(var(--axis) - var(--tuck));width:calc(var(--half) + var(--tuck));
+  transform:translateZ(-10px);
+}
+.bblock--right{
+  left:0;width:100%;
+  background-color:var(--paper);
+  border-radius:0 var(--r-page) var(--r-page) 0;
+  clip-path:inset(-2px -9em -9em var(--tuck));
+}
+/* --back-x / --back-y: how far the pages' rounded back reaches left of the hinge and below the cover's foot */
+.bback{left:calc(var(--tuck) - var(--back-x,0px));top:calc(100% + var(--sq));width:var(--back-x,0px);height:var(--back-y,0px)}
+/* The left-hand one lies on the opened cover, under the pages that have been turned. It has no face
+   of its own: only its edge is drawn (a face here would blank out the inside of the cover while the
+   first page is in the air). */
+.bblock--left{
+  left:calc(var(--axis) - var(--half));width:var(--half);
+  border-radius:var(--r-page) 0 0 var(--r-page);
+  transform:translateZ(.15px);visibility:hidden;
+  clip-path:inset(-2px 0 -9em -9em);
+}
+
+/* Leaves: each turns around the spine */
+.leaf{
+  position:absolute;left:var(--axis);top:0;width:var(--half);height:100%;
+  transform-origin:0% 50%;
+  transform-style:preserve-3d;
+  pointer-events:auto;             /* (.book takes none: see there) */
+}
+.leaf--cover{top:calc(-1 * var(--sq));bottom:calc(-1 * var(--sq));height:auto;width:calc(var(--half) + var(--sq))}
+.leaf--parked{display:none}      /* leaves far from the open page are taken out (memory on phones) */
+.leaf__face{
+  position:absolute;inset:0;overflow:hidden;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  transform:translateZ(0);
+}
+.leaf__face--back{transform:rotateY(180deg)}
+/* a turning leaf darkens by one flat tint (js sets --shade); no gradient */
+.leaf__face::after{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:9;
+  background:var(--ink);opacity:var(--shade,0);
+}
+.leaf__face--front::after{border-radius:var(--shape-recto)}
+.leaf__face--back::after{border-radius:var(--shape-verso)}
+.leaf--cover .leaf__face--front::after{border-radius:var(--shape-cover)}
+.leaf--cover .leaf__face--back::after{border-radius:var(--shape-inside)}
+
+/* the last page: it never turns */
+.page-static{position:absolute;top:0;left:var(--axis);height:100%;width:var(--half);overflow:hidden;pointer-events:auto}
+
+/* The outer margin of each page turns it, like thumbing a real one (js adds these beside the book).
+   Off while the book is closed: then the cover itself is the button. */
+.turn-zone{
+  position:absolute;top:0;bottom:0;width:2.2em;z-index:8;
+  background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.turn-zone--prev{left:calc(var(--axis) - var(--half));cursor:w-resize}
+.turn-zone--next{right:0;cursor:e-resize}
+.book-wrap.is-closed .turn-zone{display:none}
+.book-wrap.is-closed .pg--cover{cursor:pointer}
+.book-wrap--single .turn-zone{width:1.4em}
+/* (one page at a time: the strip of turned page at the screen's left edge takes you back) */
+.book-wrap--single .turn-zone--prev{left:calc(-1 * var(--strip, 2em));width:calc(var(--strip, 2em) + 1.4em)}
+
+/* the hard-edged shadow a lifted leaf throws on the page under it */
+.cast{
+  position:absolute;top:0;left:var(--axis);height:100%;width:var(--half);z-index:60;pointer-events:none;
+  background:var(--ink);opacity:0;transform-origin:0 50%;border-radius:var(--shape-recto);
+}
+
+/* ============================================================
+   PAGES — cream cards, ink rules
+   ============================================================ */
+.pg{
+  position:absolute;inset:0;
+  background-color:var(--page);
+  color:var(--ink);
+  border:var(--rule) solid var(--ink);
+  padding:1.9em 2.3em 1.5em;
+  display:flex;flex-direction:column;
+  font-size:1em;line-height:1.5;
+}
+/* the two pages share one ink rule down the spine */
+.pg--recto{border-left-width:calc(var(--rule) / 2);border-radius:var(--shape-recto)}
+.pg--verso{border-right-width:calc(var(--rule) / 2);border-radius:var(--shape-verso)}
+
+/* paper grain, for the pages that are one flat colour (the key art and the card are printed that way) */
+.grain::after{
+  content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:url('../images/brand/grain.png') 0 0/9em 9em;opacity:.55;
+}
+
+/* running head, with the page number at the outer corner */
+.pg__head{
+  display:flex;justify-content:space-between;align-items:baseline;gap:1.4em;
+  margin-bottom:1.15em;
+  font:700 max(.5em, 7.5px)/1 var(--text);letter-spacing:.24em;text-transform:uppercase;color:var(--orange-ink);
+}
+.pg--verso .pg__head{flex-direction:row-reverse}
+.pg__folio{font:800 1.75em/1 var(--display);letter-spacing:0;color:var(--ink)}
+.pg__body{flex:1;display:flex;flex-direction:column;min-height:0}
+
+/* --- type roles (the guide: Museum leads, Gotham works, Wellsville flourishes) --- */
+/* the smallest type has a floor in px: the book scales down with the window, labels must stay readable */
+.kicker{
+  font:700 max(.58em, 8px)/1.15 var(--text);letter-spacing:.2em;text-transform:uppercase;color:var(--orange-ink);
+}
+.rule{display:block;width:2.4em;height:var(--rule);background:var(--orange);flex:none}
+.body{font:400 .95em/1.6 var(--text)}
+em{font-style:italic}
+
+/* the guide's numbered circle (its "01", "02" section marks) */
+.num{
+  display:grid;place-items:center;flex:none;
+  width:3.5em;height:3.5em;border-radius:50%;
+  background-color:var(--sage);color:var(--ink);
+  border:var(--rule) solid var(--ink);
+  box-shadow:.26em .26em 0 var(--ink);
+}
+.num span{font:800 1.3em/1 var(--display);font-variant-numeric:lining-nums;padding-top:.06em}
+
+/* --- THE FILM'S TITLE COLOURS (Brian, 14 Nov: "use the colors that were used for the title animation
+       so that the colors coordinate with the video title"). The film's titles come in five
+       combinations of the guide's colours, dealt in turn by each person's place in the book
+       (js/book.js: toneOf). A person's quote page and the label on their photo take theirs:
+         --tg the ground · --tt the type · --tr the short rule (the third colour) · --te the starred
+         words · --tpin the pinstripe (the part openers' texture) · --tchip the label's ground,
+         where it is not the page's
+       Two of the five are NOT the film's ground in the book (Brian, 14 Nov, on seeing them):
+         1  the film's paper is the page's own cream here. Paper beside the cream photo page was
+            "two different off-white colors next to each other"; now both pages are one colour, the
+            quote's with the pinstripe. (The label on the photo stays paper, as a label on a card is.)
+         2  the film's olive is Coffee Bean here. Olive is the cover's colour and the frame round
+            every spread, and an olive page "blends in too much with the cover". --- */
+.tone--cream{--tg:var(--page);--tt:var(--ink);--tr:var(--orange);--te:var(--orange);--tpin:var(--pin-mid);--tchip:var(--chip)}
+.tone--coffee{--tg:var(--coffee);--tt:var(--paper);--tr:var(--mustard);--te:var(--mustard);--tpin:var(--pin-light)}
+.tone--mustard{--tg:var(--mustard);--tt:var(--ink);--tr:var(--paper);--te:var(--paper);--tpin:var(--pin)}
+.tone--sage{--tg:var(--sage);--tt:var(--ink);--tr:var(--olive);--te:var(--olive);--tpin:var(--pin)}
+.tone--orange{--tg:var(--orange);--tt:var(--paper);--tr:var(--ink);--te:var(--ink);--tpin:var(--pin)}
+
+/* --- A person's line: a page to itself, in their title's colours, pinstriped like the part openers
+       (Brian, 14 Nov). Every line of letters starts on one edge; the opening mark hangs outside it. --- */
+.pg--quote{
+  padding:2.4em 2.7em 2.4em 3.7em;
+  background-color:var(--tg);background-image:var(--tpin);color:var(--tt);
+}
+.qpage{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+.quote{
+  /* --q: the size for this quote's length · --qk: the small-screen factor · --qs: js shrinks it to fit */
+  position:relative;
+  font:300 calc(var(--q,3em) * var(--qk,1) * var(--qs,1))/1.12 var(--display);
+  letter-spacing:-.012em;
+  text-wrap:pretty;
+}
+.quote em{font-weight:400;color:var(--te)}
+/* the opening quotation mark, hung outside the left edge of its lines (here and on page 3) */
+.quote__open{position:absolute;right:100%;top:0}
+.quote__end{display:flex;align-items:center;gap:.9em;margin-top:1.7em}
+.pg--quote .rule{background:var(--tr)}
+/* who says it: under every quote (Brian, 14 Nov: one page at a time the quote is seen without the photo).
+   A size up from the book's other small caps, so that it reads on a phone: there it is the only name on the page. */
+.quote__by{font:700 max(.7em, 10px)/1 var(--text);letter-spacing:.2em;text-transform:uppercase;color:var(--tt)}
+
+/* --- A person's photo: the page facing their line. A rounded card with the hard shadow, 3:2 (the
+       tightest shape that keeps every couple whole), the film's name label on it in their title's
+       colours, and the button to their place in the film. The three sit together, centred on the page. --- */
+.person{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;padding-bottom:1.94em}   /* (lifts them by the running head's height: photo to button is then centred on the PAGE, as the line facing it is) */
+.shot{position:relative;margin-right:var(--sh)}
+.shot__card{
+  position:relative;aspect-ratio:3/2;overflow:hidden;
+  border:var(--rule) solid var(--ink);border-radius:var(--r-card);
+  box-shadow:var(--sh) var(--sh) 0 var(--ink);
+  background:var(--ink);
+}
+.shot__card img{width:100%;height:100%;object-fit:cover}
+.plate{
+  position:absolute;left:1.15em;bottom:-1.3em;z-index:2;
+  display:flex;flex-direction:column;gap:.4em;
+  max-width:calc(100% - 2.1em);
+  padding:.66em 1.15em .52em;
+  background-color:var(--tchip, var(--tg, var(--chip)));background-image:var(--tpin, var(--pin-soft));
+  color:var(--tt, var(--ink));
+  border:var(--rule) solid var(--ink);border-radius:var(--r-chip);
+  box-shadow:var(--sh) var(--sh) 0 var(--ink);
+}
+.plate__name{font:800 1.5em/1.06 var(--display);letter-spacing:-.005em;white-space:nowrap}
+/* (the link's first mark stands where the name's first letter does: the label's left, its rule, its padding) */
+.person__foot{display:flex;align-items:center;margin-top:3.1em;padding-left:calc(2.3em + var(--rule))}
+
+/* --- The link to a person's place in the film: one line of the book's small caps under their name,
+       set as the speaker's name is on the page facing it, with a play mark where that has its rule.
+       No box, no fill, no shadow, no second colour (Brian, 15 Nov: the orange pill fought the name
+       label, "too busy visually using the different shapes and colors"). The label on the photo is
+       then the one shape under it. A hairline under the line says "link"; under a pointer it
+       thickens and the mark steps forward. --- */
+.watch{
+  display:inline-block;
+  /* the speaker's size: .7em, and never under 10px, unless the page is so small that the longest
+     label (22 letters) would then run on past the photo's edge: there it gives way, and still ends
+     6px inside it (measured, 15 Nov) */
+  font:700 max(.7em, min(10px, calc(1.2em - .3px)))/1 var(--text);letter-spacing:.2em;text-transform:uppercase;text-decoration:none;
+  color:var(--ink);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+  /* a finger's worth of room round it (44px tall at the least), taken back in the margin so that nothing moves for it */
+  padding:max(1.5em, 17px) 1.6em max(1.5em, 17px) 0;margin:min(-1.5em, -17px) -1.6em min(-1.5em, -17px) 0;
+}
+.watch__in{display:flex;align-items:center;gap:.8em;padding-bottom:.62em;border-bottom:var(--rule) solid currentColor}
+.watch__end{letter-spacing:0}        /* (the last letter's spacing would carry the hairline on past it) */
+.play{display:block;flex:none;width:0;height:0;border-left:.9em solid currentColor;border-top:.55em solid transparent;border-bottom:.55em solid transparent;transition:transform .12s}
+.watch:hover .play,.watch:focus-visible .play{transform:translateX(.24em)}
+.watch:hover .watch__in,.watch:focus-visible .watch__in{box-shadow:0 var(--rule) 0 currentColor}
+.watch:focus-visible{outline:none}
+.watch--soon{opacity:.5;cursor:default}
+.watch--soon .watch__in{border-bottom-color:transparent}
+.watch--soon:hover .play{transform:none}
+.watch--soon:hover .watch__in{box-shadow:none}
+
+/* --- Page 44's button to the whole film is still the guide's pill, flat orange: there it is the one
+       thing on the page to press, with no label beside it. It presses into its shadow. --- */
+.watch--big{
+  font-size:max(.82em, 10px);letter-spacing:.16em;
+  color:var(--paper);background-color:var(--orange);
+  border:var(--rule) solid var(--ink);border-radius:99em;
+  padding:1.2em 2.1em 1.12em 1.7em;margin:0;
+  box-shadow:.5em .5em 0 var(--ink);
+  transition:transform .12s,box-shadow .12s;
+}
+.watch--big .watch__in{gap:.85em;padding-bottom:0;border-bottom:0}
+.watch--big .play{border-left-width:.95em;border-top-width:.58em;border-bottom-width:.58em;transition:none}
+.watch--big:hover,.watch--big:focus-visible{transform:translate(.32em,.32em);box-shadow:.18em .18em 0 var(--ink)}
+.watch--big:hover .play,.watch--big:focus-visible .play{transform:none}
+.watch--big:hover .watch__in,.watch--big:focus-visible .watch__in{box-shadow:none}
+.watch--big.watch--soon{color:var(--ink);background:none;border-style:dashed;box-shadow:none;opacity:.5}
+.watch--big.watch--soon:hover{transform:none;box-shadow:none}
+
+/* ============================================================
+   THE COVER — three versions; content.js picks one (cover: 'names')
+   ============================================================ */
+.pg--cover{
+  border-width:var(--rule);border-radius:var(--shape-cover);
+  align-items:center;justify-content:center;text-align:center;
+  padding:2.4em 2.2em 2.4em 2.6em;overflow:hidden;
+  border-left-width:calc(var(--rule) / 2);      /* (the spine's own edge is the other half of this rule) */
+  color:var(--paper);
+  /* the cover is a board, not a card: its upper and left edges catch the light, the others fall away */
+  box-shadow:inset var(--u) var(--u) 0 rgba(240,234,224,.24), inset calc(var(--u) * -1) calc(var(--u) * -1) 0 rgba(38,35,28,.26);
+}
+/* ...and a hinge runs down it beside the spine: the strip a shade darker, a pressed line, a lit one */
+.pg--cover::before{
+  content:"";position:absolute;top:0;bottom:0;left:0;width:.7em;pointer-events:none;
+  background-color:rgba(38,35,28,.12);
+  border-right:calc(var(--u) * 2) solid rgba(38,35,28,.36);
+  box-shadow:var(--u) 0 0 rgba(240,234,224,.22);
+}
+
+/* --- 'names': the anniversary key art. A sage ground with grain, the names of everyone in the
+       book in rows (where the art has the locations), the badge, and the one flourish. --- */
+.cover--names{background-color:var(--sage);padding:0}
+.cover__rows{
+  position:absolute;inset:0;overflow:hidden;padding-top:.28em;
+  font:400 1.04em/1.42 var(--display);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;text-align:left;
+  color:rgba(38,35,28,.33);       /* the art's tone: its row type measures 34% ink over the sage */
+  user-select:none;
+}
+.cover__rows span{display:block}
+.cover__lockup{position:relative;display:flex;flex-direction:column;align-items:center;margin-top:-1.2em}
+.cover--names .cover__badge{width:27.5em;max-width:none;height:auto;margin:0}
+/* the flourish, lettered the way the marks are: cream, an ink outline, a hard ink shadow */
+.cover__script{display:block;width:27em;height:auto;margin-top:.5em;overflow:visible}
+.cover__script text{font-family:var(--script);font-size:112px;stroke-linejoin:round;stroke-linecap:round}
+.cover__script .sk-shadow{fill:var(--ink);stroke:var(--ink);stroke-width:15px;transform:translate(9px,10px)}
+.cover__script .sk-top{fill:var(--paper);stroke:var(--ink);stroke-width:15px;paint-order:stroke fill}
+
+/* --- 'title': THE COVER (Brian, 13 Nov). The Nov 15 card's back: an olive ground with grain and type
+       straight on the colour. The "30 years" mark, The Life Church in sage Ultrabold, the years under
+       it in cream. Nothing else. --- */
+.cover--title{background-color:var(--olive);color:var(--cream)}
+.cover__stack{display:flex;flex-direction:column;align-items:center;margin-top:-1.2em}
+.cover--title .cover__mark{width:19.5em;max-width:none;height:auto;margin-bottom:2.7em}
+.cover__church{font:800 2.2em/1 var(--display);letter-spacing:.075em;text-transform:uppercase;color:var(--sage);white-space:nowrap}
+.cover__dates{font:400 1.36em/1 var(--display);letter-spacing:.34em;margin:1.05em -.34em 0 0;font-variant-numeric:lining-nums}
+
+/* --- 'box': the first pass. The orange card with the title on a sheet of paper. --- */
+.cover--box{background-color:var(--orange);background-image:var(--pin)}
+.cover--box .cover__badge{width:13.5em;height:auto;margin-bottom:2.1em}
+.cover__plate{
+  position:relative;
+  padding:1.5em 2.3em 1.35em;
+  background-color:var(--paper);background-image:var(--pin-soft);
+  color:var(--ink);
+  border:var(--rule) solid var(--ink);border-radius:var(--r-chip);
+  box-shadow:calc(var(--sh)*1.25) calc(var(--sh)*1.25) 0 var(--ink);
+}
+.cover__plate .kicker{white-space:nowrap}
+.cover__title{font:300 4.5em/.95 var(--display);letter-spacing:-.014em;margin-top:.14em;white-space:nowrap}
+.cover__title em,.titlepage__title em{font-weight:400;color:var(--olive)}
+.cover--box .cover__for{font:400 2.7em/1 var(--script);color:var(--paper);margin-top:.62em;white-space:nowrap}
+
+/* --- The inside of the cover, and the last page: the rows of names from the key-art cover and
+       nothing else (Brian, 13 Nov). A sage ground with grain, like printed endpapers. --- */
+.pg--names{background-color:var(--sage);padding:0;overflow:hidden}
+/* Inside the cover the sheet of names is pasted onto the board exactly where the left-hand pages
+   will lie. So the margin that shows around those pages is the board, as it is on the right, and
+   the first spread reads as a sheet on each board. */
+.pg--endpaper{
+  border-width:var(--rule);border-radius:var(--shape-inside);
+  background-color:var(--board);background-image:var(--pin);
+}
+.pg--endpaper .cover__rows{
+  inset:calc(var(--sq) - var(--rule)) 0 calc(var(--sq) - var(--rule)) calc(var(--sq) - var(--rule));
+  background-color:var(--sage);
+  border:var(--rule) solid var(--ink);border-right-width:calc(var(--rule) / 2);
+  border-radius:var(--shape-verso);
+}
+
+/* --- Title page (the guide's hero: Museum Light, the olive italic, the Wellsville flourish) --- */
+.titlepage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.titlepage__badge{width:15.5em;height:auto;margin-bottom:2.3em}
+.titlepage__title{font:300 5.6em/.92 var(--display);letter-spacing:-.016em;margin-top:.12em}
+.titlepage__title em{display:block}      /* Thirty / Years, stacked */
+.titlepage__for{font:400 3em/1 var(--script);color:var(--orange);margin-top:.36em;white-space:nowrap}
+.titlepage .rule{margin:2.2em auto 1.4em}
+.titlepage__sub{font:700 max(.56em, 8px)/1.7 var(--text);letter-spacing:.2em;text-transform:uppercase;max-width:24em}
+
+/* --- Page 2: the dedication, in words only --- */
+.front{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;padding:0 .4em 1.2em}
+.front__lead{font:300 2.5em/1.12 var(--display);letter-spacing:-.012em;text-wrap:balance}
+.front__lead em{font-weight:400;color:var(--olive);white-space:nowrap}   /* "The Life Church." stays on one line */
+.front .rule{margin:2.2em 0 1.9em}
+.front__ded{font:300 1.95em/1.22 var(--display);letter-spacing:-.008em;text-wrap:balance;max-width:10.5em}
+
+/* --- The question --- */
+.ask{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;padding:0 .6em}
+.ask__q{position:relative;font:300 2.75em/1.1 var(--display);letter-spacing:-.012em;margin:.5em 0 .75em;text-wrap:balance}
+.ask__q em{font-weight:400;color:var(--olive)}
+.ask .rule{margin-bottom:1.5em}
+.ask .body{max-width:25em;margin-bottom:.9em}
+.ask__turn{margin-top:1.6em;display:flex;align-items:center;gap:.8em}
+.ask__turn svg{width:2.6em;height:auto}
+
+/* --- Part openers: two full pages of one swatch colour (pinstriped, like the guide's swatches).
+       On the left the part is opened the way the guide opens a section, with the numbered circle and
+       an Ultrabold heading, and nothing else; on the right is who is in it, at the foot of the page
+       (Brian, 14 Nov). --- */
+.pg--chap{padding:2.4em 2.5em 2.2em;background-image:var(--pin)}
+.chap--mustard{background-color:var(--mustard);color:var(--ink)}
+.chap--sage{background-color:var(--sage);color:var(--ink)}
+.chap--olive{background-color:var(--olive);color:var(--paper)}
+.chap--orange{background-color:var(--orange);color:var(--paper)}
+.chap--khaki{background-color:var(--khaki);color:var(--paper)}
+/* (Coffee Bean for a part, where it would have been the cover's olive: Brian, 14 Nov. Its stripe is the paper one.) */
+.chap--coffee{background-color:var(--coffee);color:var(--paper);background-image:var(--pin-light)}
+.chap--sage .num{background-color:var(--cream)}
+.chap{flex:1;display:flex;flex-direction:column;min-height:0}
+.chap__title{font:800 calc(4.2em * var(--ct,1))/.98 var(--display);letter-spacing:-.012em;margin:.42em 0 .3em;text-wrap:balance}
+.chap__lede{font:400 1.05em/1.5 var(--text);max-width:21em;margin-bottom:1.4em}
+/* a long list is tightened by js until the page holds it: --cp closes the rows up first, then --cn
+   takes the names down a little, and last --ct takes the heading down. The small caps line never
+   shrinks (it is at its floor already). */
+.chap__list{list-style:none;margin-top:auto;border-top:var(--rule) solid currentColor}
+.chap__list li{border-bottom:var(--rule) solid currentColor}
+.chap__list a{
+  display:grid;grid-template-columns:1fr auto;column-gap:1.2em;align-items:center;
+  padding:calc(.78em * var(--cp,1)) .1em calc(.7em * var(--cp,1));color:inherit;text-decoration:none;
+}
+.chap__name{grid-column:1;font:800 calc(1.3em * var(--cn,1))/1.1 var(--display)}
+.chap__since{grid-column:1;margin-top:calc(1.24em * var(--cp,1));font:700 max(.5em, 7.5px)/1.2 var(--text);letter-spacing:.2em;text-transform:uppercase}
+.chap__no{grid-column:2;grid-row:1 / span 2;font:800 calc(1.5em * var(--cn,1))/1 var(--display)}
+.chap__list a:hover .chap__name,.chap__list a:focus-visible .chap__name{text-decoration:underline;text-decoration-thickness:var(--rule);text-underline-offset:.16em}
+
+/* --- The closing page: Coffee Bean, set like the back of the card (cream lines, one sage Ultrabold) --- */
+.pg--closing{
+  background-color:var(--coffee);color:var(--cream);
+  align-items:center;justify-content:center;text-align:center;
+}
+/* the church's badge heads the page, as the anniversary's heads page 1 (Brian, 15 Nov: "put it at
+   the top of the page rather than the bottom") */
+.closing__mark{width:9em;height:auto;margin-bottom:2.5em}
+.closing__kicker{font:400 1.02em/1.3 var(--display);letter-spacing:.1em;text-transform:uppercase}
+/* (3.9em until 15 Nov: "not so massive on the page") */
+.closing__line{font:800 2.9em/1 var(--display);letter-spacing:-.012em;color:var(--sage);margin:.4em 0 .5em;text-wrap:balance}
+.closing__body{font:400 1.32em/1.35 var(--display);max-width:15em;text-wrap:balance}
+/* the film's button sits here (Brian, 13 Nov). On the dark page its hard shadow is sage, and the
+   "coming soon" outline is cream: ink would not show. */
+.pg--closing .watch{margin-top:2.5em;box-shadow:.5em .5em 0 var(--sage)}
+.pg--closing .watch:hover,.pg--closing .watch:focus-visible{box-shadow:.18em .18em 0 var(--sage)}
+.pg--closing .watch--soon{color:var(--cream);border-color:var(--cream);box-shadow:none;opacity:.62}
+.pg--closing .watch--soon:hover{box-shadow:none}
+
+/* ============================================================
+   SMALL SCREENS — one page at a time (js adds .book-wrap--single)
+   A page is 24em x 36em here, and it is a card: all four corners round.
+   ============================================================ */
+.book-wrap--single{
+  width:var(--page-w);
+  aspect-ratio:2/3;
+  font-size:calc(var(--page-w)/24);
+  perspective:calc(var(--page-w)*3.4);
+  --qk:.8;
+  /* It is the right-hand half of the same book. The spine is this page's left edge, and whatever has
+     been turned lies beyond it, off to the left: js moves the page far enough right (--single-shift)
+     that a strip of the turned page shows at the screen's edge (Brian, 13 Nov). */
+  --axis:0%;
+  --half:100%;
+  --thick:1.6em;
+  left:var(--single-shift, 0px);
+}
+.book-wrap--single .pg{padding:1.45em 1.5em 1.2em}
+.book-wrap--single .pg__head{margin-bottom:.95em}
+.book-wrap--single .plate{left:.8em;bottom:-1.15em;padding:.56em .9em .44em;max-width:calc(100% - 1.5em)}
+.book-wrap--single .plate__name{font-size:1.2em}
+.book-wrap--single .pg--quote{padding:1.9em 1.8em 1.9em 2.8em}
+.book-wrap--single .person{padding-bottom:1.84em}
+.book-wrap--single .person__foot{padding-left:calc(1.7em + var(--rule));margin-top:2.75em}
+/* (one page at a time the page is narrow: a little less letter-spacing keeps the line well inside the photo's width) */
+.book-wrap--single .watch:not(.watch--big){font-size:max(.7em, min(10px, calc(.97em - .4px)));letter-spacing:.16em}
+.book-wrap--single .pg--cover{padding:1.6em 1.2em 1.6em 1.7em}
+.book-wrap--single .cover--names{padding:0}
+.book-wrap--single .cover--names .cover__badge{width:21em}
+.book-wrap--single .cover__script{width:21em}
+.book-wrap--single .cover__rows{font-size:.9em}
+.book-wrap--single .cover--title .cover__mark{width:15.5em;margin-bottom:2.3em}
+.book-wrap--single .cover__church{font-size:1.72em}
+.book-wrap--single .cover__dates{font-size:1.12em}
+.book-wrap--single .cover--box .cover__badge{width:11.5em;margin-bottom:1.8em}
+.book-wrap--single .cover__plate{padding:1.2em 1.4em 1.1em}
+.book-wrap--single .cover__title{font-size:3.5em}
+.book-wrap--single .cover--box .cover__for{font-size:2.2em}
+.book-wrap--single .titlepage__badge{width:13em;margin-bottom:1.9em}
+.book-wrap--single .titlepage__title{font-size:4.4em}
+.book-wrap--single .titlepage__for{font-size:2.35em}
+.book-wrap--single .front{padding:0 .4em 1em}
+.book-wrap--single .front__lead{font-size:2.35em}
+.book-wrap--single .front__ded{font-size:1.62em}
+.book-wrap--single .ask{padding:0 .2em}
+.book-wrap--single .ask__q{font-size:2.2em}
+.book-wrap--single .pg--chap{padding:1.9em 1.6em 1.6em}
+.book-wrap--single .chap__title{font-size:calc(3.4em * var(--ct,1))}
+.book-wrap--single .chap__lede{font-size:.95em}
+.book-wrap--single .chap__list{--cn0:.84}
+.book-wrap--single .closing__line{font-size:2.4em}
+.book-wrap--single .closing__body{font-size:1.15em}
+/* the blank back of a page: seen mid-turn, and then as the strip at the screen's left edge */
+.pg--blank{background-color:var(--page)}
+
+/* ============================================================
+   THE PAGER — arrows in the guide's circles, and where you are
+   ============================================================ */
+.pager{
+  position:absolute;z-index:6;
+  left:max(16px, env(safe-area-inset-left, 0px));right:max(16px, env(safe-area-inset-right, 0px));
+  bottom:calc(var(--pager-b) + var(--sab));
+  display:flex;align-items:center;justify-content:center;gap:14px;
+}
+.pager__btn{
+  flex:none;width:42px;height:42px;border-radius:50%;
+  border:2px solid var(--ink);background:var(--sage);
+  box-shadow:3px 3px 0 var(--ink);
+  display:grid;place-items:center;cursor:pointer;
+  transition:transform .12s,box-shadow .12s,background-color .12s;
+}
+.pager__btn svg{width:16px;height:16px}
+.pager__btn:hover{background:var(--mustard)}
+.pager__btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+.pager__btn[disabled]{opacity:.35;box-shadow:none;cursor:default;background:var(--cream);transform:none}
+.pager__label{
+  width:min(58vw,400px);text-align:center;
+  display:flex;flex-direction:column;gap:5px;
+}
+.pager__where{font:800 15px/1.15 var(--display);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pager__no{font:700 10px/1 var(--text);letter-spacing:.2em;text-transform:uppercase;color:var(--orange-ink)}
+/* trying covers: under the closed book, while the cover is undecided (content.js: coverPicker).
+   It takes the place of the line above, and no more room: the padding is its finger-sized target. */
+.pager__cover{
+  align-self:center;display:inline-flex;align-items:center;gap:7px;
+  margin:-8px 0;padding:8px 10px;
+  background:none;border:0;cursor:pointer;white-space:nowrap;
+  font:700 10px/1 var(--text);letter-spacing:.16em;text-transform:uppercase;color:var(--orange-ink);
+}
+.pager__cover span{text-decoration:underline dotted;text-decoration-thickness:1.5px;text-underline-offset:3px}
+.pager__cover svg{flex:none;width:11px;height:11px}
+.pager__cover:hover{color:var(--ink)}
+@media (max-width:520px){
+  :root{--pager-b:10px}
+  .pager{gap:10px}
+  .pager__where{font-size:13.5px}
+}
+
+/* ============================================================
+   THE FILM — a lightbox player
+   ============================================================ */
+.lightbox{
+  position:fixed;inset:0;z-index:300;
+  background:rgba(48,26,15,.97);          /* Coffee Bean */
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:calc(64px + var(--sat)) max(clamp(12px,3vw,40px), env(safe-area-inset-right, 0px)) calc(clamp(16px,3vw,40px) + var(--sab)) max(clamp(12px,3vw,40px), env(safe-area-inset-left, 0px));
+}
+.lightbox.is-open{display:flex}
+.lightbox__title{
+  position:absolute;top:calc(22px + var(--sat));left:max(clamp(16px,3vw,40px), env(safe-area-inset-left, 0px));right:140px;
+  font:800 1.05rem/1.2 var(--display);color:var(--cream);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lightbox__close{
+  position:absolute;top:calc(14px + var(--sat));right:max(clamp(12px,3vw,40px), env(safe-area-inset-right, 0px));
+  font:700 11px/1 var(--text);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink);background:var(--sage);border:2px solid var(--ink);border-radius:999px;
+  padding:11px 18px 10px;cursor:pointer;box-shadow:3px 3px 0 var(--ink);
+}
+.lightbox__close:hover{background:var(--mustard)}
+.lightbox__frame{
+  position:relative;width:min(100%, calc((100vh - 130px) * 16 / 9));aspect-ratio:16/9;
+  background:#000;border:2px solid var(--ink);border-radius:14px;overflow:hidden;
+  box-shadow:6px 6px 0 var(--orange);
+}
+.lightbox__frame iframe,.lightbox__frame video{position:absolute;inset:0;width:100%;height:100%;border:0;background:#000}
+
+/* ============================================================
+   REDUCED MOTION (or ?flat=1) — the book laid flat, spread by spread
+   ============================================================ */
+.is-flat .nav{background-color:var(--ground);border-bottom:2px solid var(--ink)}   /* pages scroll under it here */
+.flatbook{
+  padding:calc(var(--nav-h) + var(--sat) + 30px) max(4vw, 16px, env(safe-area-inset-right, 0px)) calc(90px + var(--sab)) max(4vw, 16px, env(safe-area-inset-left, 0px));
+  max-width:1160px;margin:0 auto;
+}
+.flat-spread{
+  display:grid;grid-template-columns:1fr 1fr;
+  margin:0 .62em 46px 0;
+  font-size:clamp(8px,1.42vw,17px);
+  border-radius:var(--r-book);
+  box-shadow:.62em .62em 0 var(--ink);
+}
+.flat-spread--one{grid-template-columns:1fr;max-width:50%;margin-left:auto;margin-right:auto;border-radius:0 var(--r-book) var(--r-book) 0}
+.flat-spread .pg{position:relative;inset:auto;aspect-ratio:3/4}
+@media (max-width:760px){
+  .flat-spread,.flat-spread--one{grid-template-columns:1fr;max-width:none;font-size:clamp(10px,4.05vw,19px);box-shadow:none;margin-right:0;border-radius:0}
+  .flat-spread .pg{aspect-ratio:2/3;border-width:var(--rule);border-radius:var(--r-page);margin-bottom:18px;box-shadow:.4em .4em 0 var(--ink)}
+  .flat-spread .pg--endpaper{display:none}
+  .flat-spread{--qk:.8}      /* a quote alone on a narrow page: the same factor the one-page book uses */
+}
+
+/* ---------- noscript ---------- */
+.noscript{max-width:640px;margin:0 auto;padding:120px 6vw 80px;text-align:center}
+.noscript h1{font:300 3rem/1 var(--display);margin-bottom:18px}
+.noscript h1 em{font-weight:400;color:var(--olive)}
+.noscript p{margin-bottom:12px}

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Thirty Years · For Pastors John &amp; Leslie</title>
+<meta name="description" content="Thirty Years, for Pastors John and Leslie: a book of voices from the 30th anniversary interviews.">
+<link rel="icon" type="image/png" href="images/brand/favicon.png">
+<link rel="preload" href="fonts/museum-300.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/museum-800.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/gotham-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/book.css?v=14">
+</head>
+<body>
+
+<!-- Loader: holds the cream until the fonts are in -->
+<div class="loader" id="loader" aria-hidden="true">
+  <img class="loader__mark" src="images/brand/NUMBER-5.png" alt="">
+  <p class="loader__hint">Opening the book</p>
+</div>
+
+<!-- Nav -->
+<header class="nav" id="nav">
+  <a class="nav__brand" href="#" data-jump="cover" aria-label="Thirty Years, for Pastors John and Leslie: back to the cover">
+    <img class="nav__mark" src="images/brand/LC-1.png" alt="">
+    <span class="nav__word">Thirty Years <em>for Pastors John &amp; Leslie</em></span>
+  </a>
+  <nav class="nav__links" id="navLinks" aria-label="Parts of the book"><!-- built by js/book.js --></nav>
+  <button class="burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+    <span></span><span></span>
+  </button>
+</header>
+<div class="mmenu" id="mobileMenu" aria-hidden="true"><!-- built by js/book.js --></div>
+
+<main>
+  <h1 class="visually-hidden">Thirty Years, for Pastors John and Leslie</h1>
+
+  <!-- The whole experience lives here: js/book.js builds the book, pins it,
+       and turns its pages as you scroll (or use the arrows). -->
+  <section class="book-scroll" id="bookScroll" aria-label="The book">
+    <div class="stage" id="stage">
+      <div class="scene dots" id="scene">
+        <div class="book-wrap bk" id="bookWrap"><!-- built by JS --></div>
+        <div class="pager" id="pager">
+          <button class="pager__btn" id="prevBtn" type="button" aria-label="Previous page">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 2.5 4.5 8l5.5 5.5"/></svg>
+          </button>
+          <div class="pager__label" aria-live="polite">
+            <span class="pager__where" id="pagerWhere"></span>
+            <span class="pager__no" id="pagerNo"></span>
+            <!-- shown under the closed book while the cover is undecided (content.js: coverPicker) -->
+            <button class="pager__cover" id="coverBtn" type="button" hidden>
+              <span></span>
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.6 8a5.6 5.6 0 1 1-1.7-4"/><path d="M13.7 1.9v3.4h-3.4"/></svg>
+            </button>
+          </div>
+          <button class="pager__btn" id="nextBtn" type="button" aria-label="Next page">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.5 11.5 8 6 13.5"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <noscript>
+    <section class="noscript">
+      <h1>Thirty <em>Years</em></h1>
+      <p><strong>For Pastors John &amp; Leslie.</strong></p>
+      <p>This book turns its pages with JavaScript. Please turn it on to read it.</p>
+    </section>
+  </noscript>
+</main>
+
+<!-- The film opens here, over the book -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Video" aria-hidden="true">
+  <p class="lightbox__title" id="lightboxTitle"></p>
+  <button class="lightbox__close" id="lightboxClose" type="button">Close</button>
+  <div class="lightbox__frame" id="lightboxFrame"></div>
+</div>
+
+<script src="js/gsap.min.js"></script>
+<script src="js/ScrollTrigger.min.js"></script>
+<script src="js/lenis.min.js"></script>
+<script src="js/content.js?v=14"></script>
+<script src="js/book.js?v=14"></script>
+</body>
+</html>
