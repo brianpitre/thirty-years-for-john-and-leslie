@@ -178,8 +178,9 @@
      somewhere else. */
   function coverRows() {
     var words = (C.coverWords && C.coverWords.length) ? C.coverWords : (B.people || []).map(function (p) {
-      var w = String(p.name).replace(/^(Pastors?|Ps\.?|Dr\.?)\s+/i, '').split(' ');
-      return w.length > 1 ? w.slice(0, -1).join(' ') : w[0];         // "Pete & Kristi Sciacchetano" -> "Pete & Kristi"; "Pastor Don Matheny" -> "Don"
+      /* the title stays (Brian, 15 Nov: "DON" is "PASTOR DON") */
+      var t = String(p.name).match(/^(Pastors?|Ps\.?|Dr\.?)\s+/i), w = String(p.name).slice(t ? t[0].length : 0).split(' ');
+      return (t ? t[1] + ' ' : '') + (w.length > 1 ? w.slice(0, -1).join(' ') : w[0]);   // "Pete & Kristi Sciacchetano" -> "Pete & Kristi"; "Pastor Don Matheny" -> "Pastor Don"
     });
     var n = words.length, out = '';
     if (!n) return '';
