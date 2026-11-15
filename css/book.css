@@ -686,7 +686,8 @@ em{font-style:italic}
 .titlepage__title em{display:block}      /* Thirty / Years, stacked */
 .titlepage__for{font:400 3em/1 var(--script);color:var(--orange);margin-top:.36em;white-space:nowrap}
 .titlepage .rule{margin:2.2em auto 1.4em}
-.titlepage__sub{font:700 max(.56em, 8px)/1.7 var(--text);letter-spacing:.2em;text-transform:uppercase;max-width:24em}
+/* 27.5em holds "Fifteen answers to one question" (26.5em) on one line above Brian's break (15 Nov; was 24em) */
+.titlepage__sub{font:700 max(.56em, 8px)/1.7 var(--text);letter-spacing:.2em;text-transform:uppercase;max-width:27.5em}
 
 /* --- Page 2: the dedication, in words only --- */
 .front{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;min-height:0;padding:0 .4em 1.2em}

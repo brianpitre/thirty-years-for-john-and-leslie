@@ -58,7 +58,7 @@ window.BOOK = {
     kicker: 'The Life Church · 1996–2026',
     title: 'Thirty *Years*',
     flourish: 'for Pastors John & Leslie',     /* page 1 */
-    subtitle: 'Fifteen answers to one question and one last word',      /* no punctuation (Brian, 14 Nov) */
+    subtitle: 'Fifteen answers to one question\nand one last word',     /* no punctuation (Brian, 14 Nov); the break before "and" is his too (15 Nov) */
 
     /* the cover: two lines under the "30 years" mark */
     coverChurch: 'The Life Church',
@@ -78,7 +78,7 @@ window.BOOK = {
     question: 'What influence have Pastors John and Leslie had on you, both in ministry and on a *personal level?*',
     questionBody: [
       'This question was asked in fifteen of the interviews filmed for the 30th anniversary.',
-      'What follows is one line from each answer, and a last word from Pastor Don Matheny.'
+      'What follows is one line from each answer and a last word from Pastor Don Matheny.'   /* no comma (Brian, 15 Nov) */
     ],
 
     /* page 44: the closing page, with the button that plays the film */

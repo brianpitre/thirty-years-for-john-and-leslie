@@ -246,7 +246,7 @@
         '<h2 class="titlepage__title">' + rich(C.title) + '</h2>' +
         '<p class="titlepage__for">' + esc(C.flourish) + '</p>' +
         '<i class="rule"></i>' +
-        '<p class="titlepage__sub">' + esc(C.subtitle) + '</p>' +
+        '<p class="titlepage__sub">' + esc(C.subtitle).replace(/\n/g, '<br>') + '</p>' +   // a \n in the subtitle is a line break
         '</div>';
     }
   });
