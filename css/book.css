@@ -741,7 +741,8 @@ em{font-style:italic}
 }
 /* the church's badge heads the page, as the anniversary's heads page 1 (Brian, 15 Nov: "put it at
    the top of the page rather than the bottom") */
-.closing__mark{width:9em;height:auto;margin-bottom:2.5em}
+/* (9em until 15 Nov: "It needs to be about twice as large") */
+.closing__mark{width:18em;max-width:100%;height:auto;margin-bottom:2.5em}
 .closing__kicker{font:400 1.02em/1.3 var(--display);letter-spacing:.1em;text-transform:uppercase}
 /* (3.9em until 15 Nov: "not so massive on the page") */
 .closing__line{font:800 2.9em/1 var(--display);letter-spacing:-.012em;color:var(--sage);margin:.4em 0 .5em;text-wrap:balance}
