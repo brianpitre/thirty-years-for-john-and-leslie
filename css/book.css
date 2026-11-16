@@ -84,14 +84,19 @@
      1.188 pages, which is 97.4vw of a page 82vw wide (123vw high). At 126vw the shut book was a hair
      wider than the screen and had to be drawn smaller, then grow as it opened. */
   --fit:1.0445;
-  --spread-w:min(92vw, calc((100vh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) * 1.5 / var(--fit)));
-  --page-h:min(calc((100vh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) / var(--fit)), 123vw);
+  /* The height the book is sized from is the room the page really has: --room-h, which js measures (the
+     stage) and sets; 100vh and 100svh only stand in for it until then. In a browser they are the same. They
+     are not in an app that draws its own bar over the page and still reports the whole screen as the window:
+     DuckDuckGo on Brian's phone (15 Nov) gave the page about 311px of a 393px window held sideways, and much
+     the same share upright. Sized from the window, the book ran up into the nav's name and down over the pager. */
+  --spread-w:min(92vw, calc((var(--room-h, 100vh) - var(--chrome) - var(--head) - var(--sat) - var(--sab)) * 1.5 / var(--fit)));
+  --page-h:min(calc((var(--room-h, 100vh) - var(--chrome) - var(--head) - var(--sat) - var(--sab)) / var(--fit)), 123vw);
   --page-w:calc(var(--page-h) * 2 / 3);
 }
 @supports (height:100svh){
   :root{
-    --spread-w:min(92vw, calc((100svh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) * 1.5 / var(--fit)));
-    --page-h:min(calc((100svh - var(--chrome) - var(--head) - var(--sat) - var(--sab)) / var(--fit)), 123vw);
+    --spread-w:min(92vw, calc((var(--room-h, 100svh) - var(--chrome) - var(--head) - var(--sat) - var(--sab)) * 1.5 / var(--fit)));
+    --page-h:min(calc((var(--room-h, 100svh) - var(--chrome) - var(--head) - var(--sat) - var(--sab)) / var(--fit)), 123vw);
   }
 }
 /* a short window: give the height to the book, not to the furniture around it */
@@ -112,6 +117,14 @@
   .pager__btn{width:36px;height:36px}
   .pager__label{gap:3px}
   .pager__where{font-size:13px}
+}
+/* (the two rules above go by the window. Where the room is shorter than the window (see --room-h), js says
+   so: .is-short is a room of 541 to 800px, and it takes what the first rule gives. No phone has a window
+   over 540 and a room under it, so the second needs no stand-in.) */
+html.is-short{--chrome:136px}
+@media (min-width:901px){
+  html.is-short{--nav-h:52px}
+  html.is-short .nav__mark{height:30px}
 }
 
 /* ---------- Reset-ish ---------- */

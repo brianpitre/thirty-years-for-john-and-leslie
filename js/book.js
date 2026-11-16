@@ -1479,15 +1479,29 @@
     var cs = getComputedStyle(sc);
     return (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
   }
-  function isSingle() {
-    var w = window.innerWidth, h = window.innerHeight;
+  /* THE ROOM the book has: the stage's height (where the pages swipe, the screen itself). book.css sizes the
+     book from it (--room-h). In a browser it is the window's height. An app that draws its own bar over the
+     page can report the whole screen as the window and give the page less (DuckDuckGo on Brian's phone,
+     15 Nov: sized from the window, the book ran up into the nav and down over the pager). Its max-height
+     rules go by the window too, so a short room is said here as well (.is-short). */
+  function measureRoom() {
+    var st = document.getElementById('stage'), h = st ? st.getBoundingClientRect().height : 0;
+    if (!(h > 100)) h = window.innerHeight;
+    var root = document.documentElement;
+    root.style.setProperty('--room-h', h.toFixed(2) + 'px');
+    root.classList.toggle('is-short', h <= 800 && h > 540);
+    lastRoom = h;
+    return h;
+  }
+  function isSingle(h) {
+    var w = window.innerWidth;
     var root = getComputedStyle(document.documentElement);
     var chrome = (parseFloat(root.getPropertyValue('--chrome')) || 176) + (parseFloat(root.getPropertyValue('--head')) || 0) + safeInsets();
     var fit = parseFloat(root.getPropertyValue('--fit')) || 1;      // the room kept for the shut book's thickness
     var spreadEm = Math.min(0.92 * w, (h - chrome) * 1.5 / fit) / 64;
     return w < 720 || w / h < 1.2 || spreadEm < 9.5;
   }
-  var currentSingle = null, lastW = 0, lastH = 0;
+  var currentSingle = null, lastW = 0, lastH = 0, lastRoom = 0;
 
   /* A PHONE OR A TABLET turns the pages by swiping left or right, and nothing scrolls (Brian, 14 Nov).
      That is any screen whose own pointer is a finger. A computer keeps the scroll, touch screen or
@@ -1540,7 +1554,7 @@
       tl = null;
     }
     setSwipe(wantsSwipe());                             // (before anything is measured: it changes what the stage is)
-    currentSingle = isSingle();
+    currentSingle = isSingle(measureRoom());            // (the room first: the book is sized from it)
     buildTimeline(currentSingle);
     if (lenis) lenis.resize();
     ScrollTrigger.refresh();
@@ -1604,19 +1618,24 @@
       ScrollTrigger.refresh();
     });
 
-    var resizeTimer = null;
-    window.addEventListener('resize', function () {
+    var resizeTimer = null, stageEl = document.getElementById('stage');
+    function onResize() {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function () {
         var w = window.innerWidth, h = window.innerHeight;
+        var room = stageEl ? stageEl.getBoundingClientRect().height : lastRoom;
         /* where a phone scrolls, its address bar sliding away changes only the height: not a reason to
-           rebuild. Where it swipes, nothing scrolls and the bar stays put: a new height is a new window. */
+           rebuild. Where it swipes, nothing scrolls and the bar stays put: a new height is a new window.
+           (The room can change with the window unchanged, as an app's bar comes or goes over the page.) */
         var touch = window.matchMedia('(pointer: coarse)').matches;
-        if (w === lastW && (h === lastH || (touch && !swipeMode)) && wantsSwipe() === swipeMode) return;
+        if (w === lastW && (h === lastH || (touch && !swipeMode)) && Math.abs(room - lastRoom) < 1 &&
+            wantsSwipe() === swipeMode) return;
         lastW = w; lastH = h;
         rebuild();
       }, 220);
-    });
+    }
+    window.addEventListener('resize', onResize);
+    if (window.ResizeObserver && stageEl) new ResizeObserver(onResize).observe(stageEl);   // (the room itself)
   }
 
   if (document.readyState !== 'loading') boot();
