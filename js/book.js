@@ -632,7 +632,10 @@
     var midY = bookWrap.offsetTop + wrapH / 2;
     /* (its top is the open book's top: wherever that is allowed to be, the shut cover is too) */
     var topLimit = Math.min((navEl ? navEl.offsetHeight : 0) - (W < 900 ? 4 : 12), midY - reachUp);
-    var botLimit = pagerEl ? pagerEl.offsetTop : bookWrap.offsetTop + wrapH + 60;
+    /* (the pager's top; where the arrows stand beside the book (html.is-side), the top of the label under it) */
+    var labelEl = pagerEl && pagerEl.querySelector('.pager__label');
+    var botLimit = !pagerEl ? bookWrap.offsetTop + wrapH + 60 :
+      pagerEl.offsetTop + (document.documentElement.classList.contains('is-side') && labelEl ? labelEl.offsetTop : 0);
     S.shutScale = clamp(Math.min(1, (botLimit - topLimit) / (reachUp + reachDown), (W - 10) / objW), 0.8, 1);
     if (S.shutScale > 0.993) S.shutScale = 1;            // (a hair too big is not worth a change of size)
     var topAt = midY - reachUp * S.shutScale, botAt = midY + reachDown * S.shutScale;
@@ -1501,6 +1504,21 @@
     var spreadEm = Math.min(0.92 * w, (h - chrome) * 1.5 / fit) / 64;
     return w < 720 || w / h < 1.2 || spreadEm < 9.5;
   }
+  /* SIDEWAYS (Brian, 16 Nov): in a short, wide room the arrows stand beside the book, and the height they took
+     under it goes to the book (book.css: html.is-side). Only where the book is one page at a time, the room is
+     540px or less, and the arrows fit beside the open book with 16px to spare at the screen's edge. (One page
+     or two is decided before this, as it always was.) */
+  function sideways(single, h) {
+    var root = document.documentElement;
+    root.classList.remove('is-side');
+    if (!single || h > 540) return;
+    root.classList.add('is-side');                       // (to read what book.css then gives the book)
+    var cs = getComputedStyle(root), w = window.innerWidth;
+    var free = h - (parseFloat(cs.getPropertyValue('--chrome')) || 0) - (parseFloat(cs.getPropertyValue('--head')) || 0) - safeInsets();
+    var pageW = Math.min(free / (parseFloat(cs.getPropertyValue('--fit')) || 1), 1.23 * w) * 2 / 3;
+    var reach = pageW * 25.62 / 24 + (parseFloat(cs.getPropertyValue('--side-gap')) || 0) + 42 + 16;   // board, shadow, gap, arrow, spare
+    if (w / 2 < reach) root.classList.remove('is-side');
+  }
   var currentSingle = null, lastW = 0, lastH = 0, lastRoom = 0;
 
   /* A PHONE OR A TABLET turns the pages by swiping left or right, and nothing scrolls (Brian, 14 Nov).
@@ -1554,7 +1572,10 @@
       tl = null;
     }
     setSwipe(wantsSwipe());                             // (before anything is measured: it changes what the stage is)
-    currentSingle = isSingle(measureRoom());            // (the room first: the book is sized from it)
+    var room = measureRoom();                           // (the room first: the book is sized from it)
+    document.documentElement.classList.remove('is-side');
+    currentSingle = isSingle(room);
+    sideways(currentSingle, room);                      // (then where the arrows go: beside a short book, or under it)
     buildTimeline(currentSingle);
     if (lenis) lenis.resize();
     ScrollTrigger.refresh();

@@ -126,6 +126,7 @@ html.is-short{--chrome:136px}
   html.is-short{--nav-h:52px}
   html.is-short .nav__mark{height:30px}
 }
+/* (a short, wide room puts the arrows beside the book and sizes it again: see THE PAGER, html.is-side) */
 
 /* ---------- Reset-ish ---------- */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -866,6 +867,38 @@ em{font-style:italic}
   .pager{gap:10px}
   .pager__where{font-size:13.5px}
 }
+/* SIDEWAYS (Brian, 16 Nov): a short, wide room, as on a phone held on its side. The arrows stand beside the
+   book, at the middle of the page, and the line that says where you are runs under it on one line: the
+   height the pager took goes to the book. js adds .is-side where the book is one page at a time, the room is
+   540px or less, and the arrows fit beside the open book (book.js: sideways). The book's top stays where it
+   was (45px down the room, then --head: what --chrome:112px gave it). Under the open page come the shut book's
+   thickness, board and shadow (1.6em + 1em + .62em of a page 36em high, all in --fit here), 8px of air, the
+   label's line (15px) and --pager-b. */
+html.is-side{
+  --side-top:45px;
+  --side-gap:22px;      /* from an arrow to the open book's edge (on the right, to the edge of its shadow) */
+  --chrome:74px;        /* --side-top + 8 + 15 + 6 */
+  --fit:1.0894;         /* (36 + 3.22) / 36 */
+  --pager-b:6px;
+}
+html.is-side .book-wrap{align-self:flex-start;margin-top:calc(var(--side-top) + var(--head));margin-bottom:0}
+/* (the pager covers the scene but takes no touch itself: a swipe that starts on the book is the book's) */
+html.is-side .pager{inset:0;pointer-events:none}
+html.is-side .pager__btn{
+  position:absolute;width:42px;height:42px;pointer-events:auto;
+  top:calc(var(--sat) + var(--side-top) + var(--head) + var(--page-h) / 2 - 21px);
+}
+/* (the spine is the middle of the room here; the board reaches 1em past the page, and its shadow .62em more on the right) */
+html.is-side #prevBtn{right:calc(50% + var(--page-w) * 25 / 24 + var(--side-gap))}
+html.is-side #nextBtn{left:calc(50% + var(--page-w) * 25.62 / 24 + var(--side-gap))}
+html.is-side .pager__label{
+  position:absolute;left:0;right:0;bottom:calc(var(--pager-b) + var(--sab));
+  width:auto;max-width:min(92vw, 560px);min-height:15px;margin:0 auto;
+  flex-direction:row;justify-content:center;align-items:baseline;gap:12px;
+}
+html.is-side .pager__where{font-size:13px;min-width:0}
+html.is-side .pager__no{flex:none}
+html.is-side .pager__cover{pointer-events:auto}
 
 /* ============================================================
    THE FILM — a lightbox player
