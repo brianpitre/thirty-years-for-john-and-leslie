@@ -1505,19 +1505,27 @@
     return w < 720 || w / h < 1.2 || spreadEm < 9.5;
   }
   /* SIDEWAYS (Brian, 16 Nov): in a short, wide room the arrows stand beside the book, and the height they took
-     under it goes to the book (book.css: html.is-side). Only where the book is one page at a time, the room is
-     540px or less, and the arrows fit beside the open book with 16px to spare at the screen's edge. (One page
-     or two is decided before this, as it always was.) */
+     under it goes to the book (book.css: html.is-side). In a room 540px or less, then:
+       - both pages, as on a computer ("view the book similarly to how it looks on desktop, where both pages
+         ... are viewable"), where the arrows fit beside the open spread with 16px to spare at the screen's
+         edge, and its type is not under 4px to the em;
+       - else one page, where the arrows fit beside that;
+       - else as before (one page, the pager under it).
+     Returns whether the book is one page at a time. */
   function sideways(single, h) {
     var root = document.documentElement;
     root.classList.remove('is-side');
-    if (!single || h > 540) return;
+    if (h > 540) return single;
     root.classList.add('is-side');                       // (to read what book.css then gives the book)
     var cs = getComputedStyle(root), w = window.innerWidth;
     var free = h - (parseFloat(cs.getPropertyValue('--chrome')) || 0) - (parseFloat(cs.getPropertyValue('--head')) || 0) - safeInsets();
-    var pageW = Math.min(free / (parseFloat(cs.getPropertyValue('--fit')) || 1), 1.23 * w) * 2 / 3;
-    var reach = pageW * 25.62 / 24 + (parseFloat(cs.getPropertyValue('--side-gap')) || 0) + 42 + 16;   // board, shadow, gap, arrow, spare
-    if (w / 2 < reach) root.classList.remove('is-side');
+    var fit = parseFloat(cs.getPropertyValue('--fit')) || 1, gap = parseFloat(cs.getPropertyValue('--side-gap')) || 0;
+    var spreadW = Math.min(0.92 * w, free * 1.5 / fit), em = spreadW / 64;
+    if (em >= 4 && w / 2 >= spreadW / 2 + em * 1.62 + gap + 42 + 16) return false;     // (half the spread, its board and shadow, gap, arrow, spare)
+    var pageW = Math.min(free / fit, 1.23 * w) * 2 / 3;
+    if (single && w / 2 >= pageW * 25.62 / 24 + gap + 42 + 16) return true;
+    root.classList.remove('is-side');
+    return single;
   }
   var currentSingle = null, lastW = 0, lastH = 0, lastRoom = 0;
 
@@ -1574,8 +1582,7 @@
     setSwipe(wantsSwipe());                             // (before anything is measured: it changes what the stage is)
     var room = measureRoom();                           // (the room first: the book is sized from it)
     document.documentElement.classList.remove('is-side');
-    currentSingle = isSingle(room);
-    sideways(currentSingle, room);                      // (then where the arrows go: beside a short book, or under it)
+    currentSingle = sideways(isSingle(room), room);     // (then a short, wide room: both pages, the arrows beside them)
     buildTimeline(currentSingle);
     if (lenis) lenis.resize();
     ScrollTrigger.refresh();

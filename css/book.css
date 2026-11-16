@@ -869,8 +869,8 @@ em{font-style:italic}
 }
 /* SIDEWAYS (Brian, 16 Nov): a short, wide room, as on a phone held on its side. The arrows stand beside the
    book, at the middle of the page, and the line that says where you are runs under it on one line: the
-   height the pager took goes to the book. js adds .is-side where the book is one page at a time, the room is
-   540px or less, and the arrows fit beside the open book (book.js: sideways). The book's top stays where it
+   height the pager took goes to the book. js adds .is-side where the room is 540px or less and the arrows fit
+   beside the open book: both pages where they fit, else one (book.js: sideways). The book's top stays where it
    was (45px down the room, then --head: what --chrome:112px gave it). Under the open page come the shut book's
    thickness, board and shadow (1.6em + 1em + .62em of a page 36em high, all in --fit here), 8px of air, the
    label's line (15px) and --pager-b. */
@@ -891,6 +891,24 @@ html.is-side .pager__btn{
 /* (the spine is the middle of the room here; the board reaches 1em past the page, and its shadow .62em more on the right) */
 html.is-side #prevBtn{right:calc(50% + var(--page-w) * 25 / 24 + var(--side-gap))}
 html.is-side #nextBtn{left:calc(50% + var(--page-w) * 25.62 / 24 + var(--side-gap))}
+/* BOTH PAGES sideways, as on a computer (Brian, 16 Nov), where they fit (book.js: sideways): a spread 64em
+   wide and 2/3 as high, its spine the middle of the room; the arrows stand beside its boards. (--fit above is
+   the one page's; a spread's thickness, board and shadow come to a little less of its height, 3.52em of 42.67:
+   1-2px of air to spare.) */
+html.is-side .book-wrap:not(.book-wrap--single) ~ .pager .pager__btn{top:calc(var(--sat) + var(--side-top) + var(--head) + var(--spread-w) / 3 - 21px)}
+html.is-side .book-wrap:not(.book-wrap--single) ~ .pager #prevBtn{right:calc(50% + var(--spread-w) * 33 / 64 + var(--side-gap))}
+html.is-side .book-wrap:not(.book-wrap--single) ~ .pager #nextBtn{left:calc(50% + var(--spread-w) * 33.62 / 64 + var(--side-gap))}
+/* Sideways the book is under half its upright size (5 to 8px to the em, against 12 or 13 upright), and the
+   smallest type's px floors (there so that labels stay readable on a phone held upright) made it two or three
+   times its size: a part's list ran the height of its page (Brian, 16 Nov, page 25). So here every line keeps
+   its proportion to the page, as on a computer. */
+html.is-side .pg__head{font-size:.5em}
+html.is-side .kicker{font-size:.58em}
+html.is-side .quote__by{font-size:.7em}
+html.is-side .bk .watch:not(.watch--big){font-size:.7em}
+html.is-side .watch--big{font-size:.82em}
+html.is-side .titlepage__sub{font-size:.56em}
+html.is-side .chap__since{font-size:.5em}
 html.is-side .pager__label{
   position:absolute;left:0;right:0;bottom:calc(var(--pager-b) + var(--sab));
   width:auto;max-width:min(92vw, 560px);min-height:15px;margin:0 auto;
